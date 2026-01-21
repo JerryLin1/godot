@@ -3970,6 +3970,9 @@ void Control::_notification(int p_notification) {
 			} else {
 				update_minimum_size();
 				_size_changed();
+				if (get_viewport() != nullptr) {
+					get_viewport()->_update_mouse_over(get_viewport()->get_mouse_position());
+				}
 			}
 		} break;
 
