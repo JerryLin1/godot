@@ -368,21 +368,50 @@ Dictionary GDScriptSyntaxHighlighter::_get_line_syntax_highlighting_impl(int p_l
 		}
 
 		// VERY hacky... but couldn't come up with anything better.
-		if (j > 0 && (str[j] == '&' || str[j] == '^' || str[j] == '%' || str[j] == '+' || str[j] == '-' || str[j] == '~' || str[j] == '.')) {
+		if (j >= 0 && (str[j] == '&' || str[j] == '^' || str[j] == '%' || str[j] == '+' || str[j] == '-' || str[j] == '~' || str[j] == '.')) {
 			int to = j - 1;
-			// Find what the last text was (prev_text won't work if there's no whitespace, so we need to do it manually).
-			while (to > 0 && is_whitespace(str[to])) {
-				to--;
+
+			bool is_start_of_content = true;
+			for (int k = 0; k < j; k++) {
+				if (!is_whitespace(str[k])) {
+					is_start_of_content = false;
+					break;
+				}
 			}
-			int from = to;
-			while (from > 0 && !is_symbol(str[from])) {
-				from--;
+
+			String search_text = str;
+			if (is_start_of_content && p_line > 0) {
+				const String &prev_line = text_edit->get_line_with_ime(p_line - 1);
+				int prev_len = prev_line.length();
+				int last_char_idx = prev_len - 1;
+
+				// Skip trailing whitespace on the previous line.
+				while (last_char_idx >= 0 && is_whitespace(prev_line[last_char_idx])) {
+					last_char_idx--;
+				}
+
+				// If the previous line ends with '\', treat it as a continuation.
+				if (last_char_idx >= 0 && prev_line[last_char_idx] == '\\') {
+					search_text = prev_line;
+					to = last_char_idx - 1;
+				}
 			}
-			String word = str.substr(from + 1, to - from);
-			// Keywords need to be exceptions, except for keywords that represent a value.
-			if (word == "true" || word == "false" || word == "null" || word == "PI" || word == "TAU" || word == "INF" || word == "NAN" || word == "self" || word == "super" || !reserved_keywords.has(word)) {
-				if (!is_symbol(str[to]) || str[to] == '"' || str[to] == '\'' || str[to] == ')' || str[to] == ']' || str[to] == '}') {
-					is_binary_op = true;
+			if (to >= 0) {
+				// Find what the last text was (prev_text won't work if there's no whitespace, so we need to do it manually).
+				while (to > 0 && is_whitespace(search_text[to])) {
+					to--;
+				}
+				int from = to;
+				while (from > 0 && !is_symbol(search_text[from])) {
+					from--;
+				}
+				int word_start = (from == 0 && !is_symbol(search_text[0])) ? 0 : from + 1;
+				String word = search_text.substr(word_start, to - word_start + 1);
+				// Keywords need to be exceptions, except for keywords that represent a value.
+				if (word == "true" || word == "false" || word == "null" || word == "PI" || word == "TAU" || word == "INF" || word == "NAN" || word == "self" || word == "super" || !reserved_keywords.has(word)) {
+					if (!is_symbol(search_text[to]) || search_text[to] == '"' || search_text[to] == '\'' || search_text[to] == ')' || search_text[to] == ']' || search_text[to] == '}') {
+						is_binary_op = true;
+					}
 				}
 			}
 		}
